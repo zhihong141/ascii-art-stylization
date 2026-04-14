@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASCII Workstation Pro v5.0.0</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --bg-deep:#050505;--panel-bg:#0f0f0f;--border-muted:#1e1e1e;--accent:#10b981;
+      --text-main:#d1d5db;--text-dim:#6b7280;--header-bg:#0a0a0a;--input-bg:rgba(0,0,0,.4);
+      --canvas-bg:#000;
+    }
+    body.light-theme{
+      --bg-deep:#f1f5f9;--panel-bg:#fff;--border-muted:#e2e8f0;--accent:#059669;
+      --text-main:#1e293b;--text-dim:#64748b;--header-bg:#f8fafc;--input-bg:rgba(255,255,255,.8);
+      --canvas-bg:#fff;
+    }
+    body{background-color:var(--bg-deep);color:var(--text-main);font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;transition:background-color .3s ease,color .3s ease;}
+    .control-panel{background:var(--panel-bg);border-right:1px solid var(--border-muted);transition:background-color .3s ease,border-color .3s ease;}
+    header{background-color:var(--header-bg);border-bottom:1px solid var(--border-muted);}
+    ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#666;border-radius:10px}
+    input[type="range"]{-webkit-appearance:none;background:#333;height:2px;border-radius:2px}
+    .light-theme input[type="range"]{background:#cbd5e1}
+    input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;background:var(--accent);border-radius:50%;cursor:pointer}
+    .toggle-active{color:#fff!important;background-color:var(--accent)!important;border-color:var(--accent)!important}
+    #output-canvas{image-rendering:pixelated;max-width:100%;max-height:100%;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+    select{background-color:var(--input-bg)!important;color:var(--text-main)!important;border-color:var(--border-muted)!important}
+    .label-style{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;opacity:.5}
+    .crt-overlay::after{
+      content:" ";display:block;position:absolute;top:0;left:0;bottom:0;right:0;
+      background:linear-gradient(rgba(18,16,16,0) 50%,rgba(0,0,0,.15) 50%),
+                 linear-gradient(90deg,rgba(255,0,0,.03),rgba(0,255,0,.01),rgba(0,0,255,.03));
+      z-index:2;background-size:100% 3px,3px 100%;pointer-events:none;opacity:0;transition:opacity .3s
+    }
+    .crt-active.crt-overlay::after{opacity:1}
+  </style>
+</head>
+
+<body class="h-screen flex flex-col overflow-hidden">
+  <header class="h-14 flex items-center justify-between px-6 shrink-0 z-10">
+    <div class="flex items-center gap-4">
+      <h1 class="text-xs font-bold tracking-widest uppercase opacity-80">
+        ASCII Engine <span class="text-emerald-500">v5.0.0 PRO+</span>
+      </h1>
+    </div>
+    <div class="flex gap-4 items-center">
+      <button id="theme-toggle" class="p-2 rounded-lg border border-slate-700/30 hover:bg-slate-500/10 transition-colors flex items-center gap-2">
+        <div id="theme-icons" class="relative w-4 h-4">
+          <svg id="sun-icon" class="absolute inset-0 hidden w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path>
+          </svg>
+          <svg id="moon-icon" class="absolute inset-0 w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+          </svg>
+        </div>
+        <span id="theme-text" class="text-[9px] uppercase font-bold tracking-wider">Dark</span>
+      </button>
+      <div class="flex items-center gap-2 pl-4 border-l border-slate-700/30">
+        <div id="status-dot" class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></div>
+        <span id="status-msg" class="text-[9px] uppercase tracking-widest opacity-50">System Live</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex flex-1 overflow-hidden">
+    <aside class="w-72 control-panel flex flex-col shrink-0 overflow-y-auto border-r">
+      <div class="p-6 space-y-4 border-b border-slate-700/10">
+        <div class="flex gap-2">
+          <button id="webcam-btn" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border border-slate-700/50 hover:border-emerald-500 transition-all rounded">Camera</button>
+          <label class="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border border-slate-700/50 hover:border-emerald-500 transition-all rounded cursor-pointer text-center">
+            Upload
+            <input type="file" id="file-input" accept="video/*,image/*" class="hidden" />
+          </label>
+        </div>
+      </div>
+
+      <div class="p-6 space-y-6">
+        <!-- Resolution -->
+        <div class="space-y-3">
+          <div class="flex justify-between items-baseline">
+            <label class="label-style">Resolution</label>
+            <span id="val-width" class="text-xs font-mono text-emerald-500">120</span>
+          </div>
+          <input type="range" id="res-range" min="40" max="400" value="120" class="w-full" />
+        </div>
+
+        <!-- Processing Mode -->
+        <div class="space-y-3">
+          <label class="label-style">Processing Mode</label>
+          <select id="processing-mode" class="w-full border border-slate-700/50 rounded p-2 text-[10px] uppercase font-bold outline-none focus:border-emerald-500 transition-all">
+            <option value="ascii">ASCII Rendering</option>
+            <option value="halftone">Halftone</option>
+            <option value="dots">Dots Mode</option>
+            <option value="contour">Contour</option>
+            <option value="pixelsort">Pixel Sort</option>
+            <option value="blockify">Blockify</option>
+            <option value="threshold">Threshold</option>
+            <option value="edge">Edge Detection</option>
+            <option value="crosshatch">Crosshatch</option>
+          </select>
+        </div>
+
+        <!-- Retro Palettes -->
+        <div class="space-y-3">
+          <label class="label-style">Retro Palette Filter</label>
+          <select id="retro-palette" class="w-full border border-slate-700/50 rounded p-2 text-[10px] uppercase font-bold outline-none focus:border-emerald-500 transition-all">
+            <option value="none">True Color</option>
+            <option value="gameboy">GameBoy Classic</option>
+            <option value="nes">NES (8-Bit)</option>
+            <option value="c64">Commodore 64</option>
+            <option value="cga">CGA Palette</option>
+            <option value="p3">P3 Display</option>
+          </select>
+        </div>
+
+        <!-- Color Matrix Mixer -->
+        <div class="space-y-4 bg-black/20 p-4 rounded border border-slate-700/10">
+          <div class="flex items-center justify-between">
+            <label class="label-style text-emerald-500">RGB Mixer</label>
+            <button id="btn-reset-rgb" class="text-[8px] font-bold uppercase tracking-wider px-2 py-1 rounded border border-slate-700/50 hover:border-emerald-500 hover:text-emerald-500 transition-all">Reset</button>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="space-y-1">
+              <label class="text-[8px] opacity-50 font-bold block">RED</label>
+              <input type="range" id="mix-r" min="0" max="200" value="100" class="w-full accent-red-500" />
+            </div>
+            <div class="space-y-1">
+              <label class="text-[8px] opacity-50 font-bold block">GREEN</label>
+              <input type="range" id="mix-g" min="0" max="200" value="100" class="w-full accent-green-500" />
+            </div>
+            <div class="space-y-1">
+              <label class="text-[8px] opacity-50 font-bold block">BLUE</label>
+              <input type="range" id="mix-b" min="0" max="200" value="100" class="w-full accent-blue-500" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Image Tweaks -->
+        <div class="space-y-4 bg-black/20 p-4 rounded border border-slate-700/10">
+          <label class="label-style text-emerald-500">Image Tweaks</label>
+
+          <div class="space-y-2">
+            <div class="flex justify-between text-[9px] uppercase font-bold"><label>Brightness</label><span id="v-bright">100%</span></div>
+            <input type="range" id="brightness" min="0" max="200" value="100" class="w-full" />
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex justify-between text-[9px] uppercase font-bold"><label>Contrast</label><span id="v-contrast">100%</span></div>
+            <input type="range" id="contrast" min="0" max="200" value="100" class="w-full" />
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex justify-between text-[9px] uppercase font-bold"><label>Saturation</label><span id="v-saturate">100%</span></div>
+            <input type="range" id="saturate" min="0" max="200" value="100" class="w-full" />
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex justify-between text-[9px] uppercase font-bold"><label>Hue Rotate</label><span id="v-hue">0deg</span></div>
+            <input type="range" id="hue" min="0" max="360" value="0" class="w-full" />
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex justify-between text-[9px] uppercase font-bold"><label>Gamma</label><span id="v-gamma">1.0</span></div>
+            <input type="range" id="gamma" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full" />
+          </div>
+        </div>
+
+        <!-- Dither -->
+        <div class="space-y-3">
+          <label class="label-style">Dither Engine (Global)</label>
+          <select id="dither-mode" class="w-full border border-slate-700/50 rounded p-2 text-[10px] uppercase font-bold outline-none focus:border-emerald-500 transition-all">
+            <option value="none">Disabled</option>
+            <option value="floyd">Floyd-Steinberg</option>
+            <option value="atkinson">Atkinson</option>
+            <option value="stucki">Stucki</option>
+            <option value="burkes">Burkes</option>
+          </select>
+        </div>
+
+        <!-- Switches -->
+        <div class="space-y-2">
+          <div class="grid grid-cols-2 gap-2">
+            <button id="btn-invert" class="py-2 border border-slate-700/50 rounded text-[9px] uppercase font-bold hover:bg-slate-500/10 transition-colors">Invert</button>
+            <button id="btn-color" class="py-2 border border-slate-700/50 rounded text-[9px] uppercase font-bold hover:bg-slate-500/10 transition-colors toggle-active">Color</button>
+            <button id="btn-mute" class="py-2 border border-slate-700/50 rounded text-[9px] uppercase font-bold hover:bg-slate-500/10 transition-colors">Muted</button>
+            <button id="btn-skip-white" class="py-2 border border-slate-700/50 rounded text-[9px] uppercase font-bold hover:bg-slate-500/10 transition-colors">Skip White</button>
+            <button id="btn-sharpen" class="py-2 border border-slate-700/50 rounded text-[9px] uppercase font-bold hover:bg-slate-500/10 transition-colors">Sharpen</button>
+            <button id="btn-crt" class="py-2 border border-slate-700/50 rounded text-[9px] uppercase font-bold hover:bg-slate-500/10 transition-colors">CRT Mode</button>
+          </div>
+
+          <button id="btn-download" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] uppercase font-bold tracking-widest transition-all shadow-lg shadow-emerald-900/20">
+            Capture Frame (PNG)
+          </button>
+
+          <div id="char-set-container" class="mt-2">
+            <select id="char-set" class="w-full h-10 border border-slate-700/50 rounded text-[10px] uppercase font-bold text-center outline-none cursor-pointer hover:border-emerald-500 transition-all">
+              <option value="standard">Standard Symbols</option>
+              <option value="dense">High Density</option>
+              <option value="minimal">Minimalist</option>
+              <option value="blocks">Block Matrix</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <section id="display-area" class="flex-1 relative overflow-hidden flex items-center justify-center p-4 crt-overlay">
+      <canvas id="output-canvas"></canvas>
+
+      <div class="absolute bottom-4 left-4 flex gap-4 pointer-events-none">
+        <div class="text-[9px] font-mono opacity-30 uppercase">Src: <span id="overlay-src">None</span></div>
+        <div class="text-[9px] font-mono opacity-30 uppercase">Rate: <span id="overlay-fps">--</span> FPS</div>
+      </div>
+    </section>
+  </div>
+
+  <video id="video-source" playsinline class="hidden"></video>
+  <img id="image-source" class="hidden" />
+  <canvas id="proc-canvas" class="hidden"></canvas>
+
+  <script>
+    const video = document.getElementById('video-source');
+    const image = document.getElementById('image-source');
+    const procCanvas = document.getElementById('proc-canvas');
+    const procCtx = procCanvas.getContext('2d', { willReadFrequently: true });
+
+    const outputCanvas = document.getElementById('output-canvas');
+    const outCtx = outputCanvas.getContext('2d');
+
+    const controls = {
+      res: document.getElementById('res-range'),
+      bright: document.getElementById('brightness'),
+      contrast: document.getElementById('contrast'),
+      saturate: document.getElementById('saturate'),
+      hue: document.getElementById('hue'),
+      gamma: document.getElementById('gamma'),
+      dither: document.getElementById('dither-mode'),
+      charSet: document.getElementById('char-set'),
+      mixR: document.getElementById('mix-r'),
+      mixG: document.getElementById('mix-g'),
+      mixB: document.getElementById('mix-b'),
+      retro: document.getElementById('retro-palette'),
+      processingMode: document.getElementById('processing-mode')
+    };
+
+    const buttons = {
+      invert: document.getElementById('btn-invert'),
+      color: document.getElementById('btn-color'),
+      mute: document.getElementById('btn-mute'),
+      skip: document.getElementById('btn-skip-white'),
+      sharpen: document.getElementById('btn-sharpen'),
+      crt: document.getElementById('btn-crt'),
+      download: document.getElementById('btn-download'),
+      resetRgb: document.getElementById('btn-reset-rgb')
+    };
+
+    const state = {
+      invert: false, color: true, skipWhite: false, muted: true, sharpen: false, crt: false,
+      lastFrameTime: 0, sourceType: 'none', isDark: true
+    };
+
+    const palettes = {
+      gameboy: [[15,56,15],[48,98,48],[139,172,15],[155,188,15]],
+      nes: [[0,0,0],[252,252,252],[248,56,0],[172,124,0],[0,168,0],[0,136,136],[0,0,188],[188,0,188]],
+      c64: [[0,0,0],[255,255,255],[136,0,0],[170,255,238],[204,68,204],[0,204,85],[0,0,170],[238,238,119],[221,136,85],[102,68,0],[255,119,119],[51,51,51],[119,119,119],[170,255,102],[0,136,255],[187,187,187]],
+      cga: [[0,0,0],[0,255,255],[255,0,255],[255,255,255]]
+    };
+
+    const charSets = {
+      dense: "@#W$9876543210?!abc;:+=-,._ ",
+      standard: "@%#*+=-:. ",
+      minimal: "#+- ",
+      blocks: "█▓▒░ "
+    };
+
+    const ditherKernels = {
+      floyd: [[1,0,7/16],[-1,1,3/16],[0,1,5/16],[1,1,1/16]],
+      atkinson: [[1,0,1/8],[2,0,1/8],[-1,1,1/8],[0,1,1/8],[1,1,1/8],[0,2,1/8]],
+      stucki: [[1,0,8/42],[2,0,4/42],[-2,1,2/42],[-1,1,4/42],[0,1,8/42],[1,1,4/42],[2,1,2/42],[-2,2,1/42],[-1,2,2/42],[0,2,4/42],[1,2,2/42],[2,2,1/42]],
+      burkes: [[1,0,8/32],[2,0,4/32],[-2,1,2/32],[-1,1,4/32],[0,1,8/32],[1,1,4/32],[2,1,2/32]]
+    };
+
+    const updateToggleStyle = (btn, active) => btn.classList.toggle('toggle-active', active);
+    updateToggleStyle(buttons.color, state.color);
+    updateToggleStyle(buttons.mute, state.muted);
+    video.muted = state.muted;
+
+    function updateUIValues() {
+      document.getElementById('val-width').textContent = controls.res.value;
+      document.getElementById('v-bright').textContent = controls.bright.value + '%';
+      document.getElementById('v-contrast').textContent = controls.contrast.value + '%';
+      document.getElementById('v-saturate').textContent = controls.saturate.value + '%';
+      document.getElementById('v-hue').textContent = controls.hue.value + 'deg';
+      document.getElementById('v-gamma').textContent = controls.gamma.value;
+    }
+
+    Object.values(controls).forEach(el => el.addEventListener('input', () => {
+      updateUIValues();
+      if (state.sourceType === 'image') processFrame(performance.now());
+    }));
+
+    document.getElementById('theme-toggle').onclick = () => {
+      state.isDark = !state.isDark;
+      document.body.classList.toggle('light-theme', !state.isDark);
+      document.getElementById('sun-icon').classList.toggle('hidden', state.isDark);
+      document.getElementById('moon-icon').classList.toggle('hidden', !state.isDark);
+      document.getElementById('theme-text').textContent = state.isDark ? 'Dark' : 'Light';
+      if (state.sourceType === 'image') processFrame(performance.now());
+    };
+
+    buttons.invert.onclick = () => { state.invert = !state.invert; updateToggleStyle(buttons.invert, state.invert); processFrame(performance.now()); };
+    buttons.color.onclick  = () => { state.color  = !state.color;  updateToggleStyle(buttons.color,  state.color);  processFrame(performance.now()); };
+    buttons.mute.onclick   = () => { state.muted  = !state.muted;  video.muted = state.muted; updateToggleStyle(buttons.mute, state.muted); };
+    buttons.skip.onclick   = () => { state.skipWhite = !state.skipWhite; updateToggleStyle(buttons.skip, state.skipWhite); processFrame(performance.now()); };
+    buttons.sharpen.onclick= () => { state.sharpen = !state.sharpen; updateToggleStyle(buttons.sharpen, state.sharpen); processFrame(performance.now()); };
+    buttons.crt.onclick    = () => { state.crt = !state.crt; updateToggleStyle(buttons.crt, state.crt); document.getElementById('display-area').classList.toggle('crt-active', state.crt); };
+
+    buttons.download.onclick = () => {
+      if (state.sourceType === 'none') return;
+      const dataUrl = outputCanvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = 'ascii-render-' + Date.now() + '.png';
+      link.href = dataUrl;
+      link.click();
+    };
+
+    buttons.resetRgb.onclick = () => {
+      controls.mixR.value = 100;
+      controls.mixG.value = 100;
+      controls.mixB.value = 100;
+      if (state.sourceType === 'image') processFrame(performance.now());
+    };
+
+    // ---------------- Image Processing ----------------
+    let animationId = null;
+
+    document.getElementById('file-input').onchange = (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      stopAll();
+      state.lastObjectUrl = URL.createObjectURL(file);
+      if (file.type.startsWith('image/')) {
+        state.sourceType = 'image';
+        image.src = state.lastObjectUrl;
+        image.onload = () => {
+          document.getElementById('overlay-src').textContent = 'Image';
+          processFrame(performance.now());
+        };
+        return;
+      }
+      if (file.type.startsWith('video/')) {
+        state.sourceType = 'video';
+        video.srcObject = null;
+        video.src = state.lastObjectUrl;
+        video.loop = true;
+        video.muted = state.muted;
+        video.onloadedmetadata = () => {
+          document.getElementById('overlay-src').textContent = 'Video';
+          video.play().catch(() => {});
+          state.lastFrameTime = performance.now();
+          if (animationId) cancelAnimationFrame(animationId);
+          animationId = requestAnimationFrame(processFrame);
+        };
+        return;
+      }
+    };
+
+    document.getElementById('webcam-btn').onclick = async () => {
+      stopAll();
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        state.sourceType = 'camera';
+        state.currentStream = stream;
+        video.src = '';
+        video.srcObject = stream;
+        video.loop = true;
+        video.muted = true;
+        video.onloadedmetadata = () => {
+          document.getElementById('overlay-src').textContent = 'Webcam';
+          video.play().catch(() => {});
+          state.lastFrameTime = performance.now();
+          if (animationId) cancelAnimationFrame(animationId);
+          animationId = requestAnimationFrame(processFrame);
+        };
+      } catch (err) {
+        state.sourceType = 'none';
+        document.getElementById('overlay-src').textContent = 'None';
+      }
+    };
+
+    function stopAll() {
+      if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
+      if (state.currentStream) {
+        try { state.currentStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+        state.currentStream = null;
+      }
+      try { video.pause(); } catch (e) {}
+      video.onloadedmetadata = null;
+      video.srcObject = null;
+      video.removeAttribute('src');
+      try { video.load(); } catch (e) {}
+      if (state.lastObjectUrl) {
+        try { URL.revokeObjectURL(state.lastObjectUrl); } catch (e) {}
+        state.lastObjectUrl = null;
+      }
+    }
+
+    function applySharpen(px, w, h) {
+      const out = new Uint8ClampedArray(px.length);
+      const kernel = [0,-1,0,-1,5,-1,0,-1,0];
+      for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+          const i = (y * w + x) * 4;
+          for (let c = 0; c < 3; c++) {
+            let val = 0;
+            for (let ky = -1; ky <= 1; ky++)
+              for (let kx = -1; kx <= 1; kx++)
+                val += px[((y+ky)*w+(x+kx))*4 + c] * kernel[(ky+1)*3+(kx+1)];
+            out[i+c] = Math.max(0, Math.min(255, val));
+          }
+          out[i+3] = 255;
+        }
+      }
+      px.set(out);
+    }
+
+    function getEdgeIntensity(px, w, h, x, y) {
+      if (x < 1 || x >= w - 1 || y < 1 || y >= h - 1) return 0;
+      const gx = [[-1,0,1],[-2,0,2],[-1,0,1]];
+      const gy = [[-1,-2,-1],[0,0,0],[1,2,1]];
+      let resX = 0, resY = 0;
+      for (let j = -1; j <= 1; j++) {
+        for (let i = -1; i <= 1; i++) {
+          const idx = ((y + j) * w + (x + i)) * 4;
+          const l = (px[idx] + px[idx+1] + px[idx+2]) / 3;
+          resX += l * gx[j+1][i+1];
+          resY += l * gy[j+1][i+1];
+        }
+      }
+      return Math.sqrt(resX * resX + resY * resY);
+    }
+
+    function applyDithering(pixels, w, h, mode) {
+      const kernel = ditherKernels[mode];
+      if (!kernel) return;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          const oldL = pixels[i];
+          const newL = oldL < 128 ? 0 : 255;
+          const err = oldL - newL;
+          pixels[i] = pixels[i+1] = pixels[i+2] = newL;
+          for (const [dx, dy, factor] of kernel) {
+            const nx = x + dx, ny = y + dy;
+            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+              const ni = (ny * w + nx) * 4;
+              pixels[ni] = Math.max(0, Math.min(255, pixels[ni] + err * factor));
+            }
+          }
+        }
+      }
+    }
+
+    function findNearest(r, g, b, palette) {
+      let min = Infinity, best = palette[0];
+      for (let c of palette) {
+        const d = Math.sqrt((r-c[0])**2 + (g-c[1])**2 + (b-c[2])**2);
+        if (d < min) { min = d; best = c; }
+      }
+      return best;
+    }
+
+    function applyPixelSort(px, w, h) {
+      for (let x = 0; x < w; x++) {
+        const col = [];
+        for (let y = 0; y < h; y++) {
+          const i = (y * w + x) * 4;
+          col.push({ r: px[i], g: px[i+1], b: px[i+2], l: px[i] });
+        }
+        col.sort((a, b) => a.l > 120 ? a.l - b.l : 0);
+        for (let y = 0; y < h; y++) {
+          const i = (y * w + x) * 4;
+          px[i] = col[y].r; px[i+1] = col[y].g; px[i+2] = col[y].b;
+        }
+      }
+    }
+
+    function renderChars(ctx, outW, outH, px, srcW, srcH, mode) {
+      const fontSize = Math.max(8, Math.min(24, 1200 / srcW));
+      const charW = fontSize * 0.6, charH = fontSize;
+      ctx.font = fontSize + 'px Courier New, monospace';
+      ctx.textBaseline = 'top';
+      const chars = [...charSets[controls.charSet.value]].reverse().join('');
+
+      for (let y = 0; y < srcH; y++) {
+        for (let x = 0; x < srcW; x++) {
+          const i = (y * srcW + x) * 4;
+          const r = px[i], g = px[i+1], b = px[i+2];
+          const lum = (r + g + b) / 3;
+          if (state.skipWhite && lum > 240) continue;
+          let ch = '';
+          if (mode === 'edge' || mode === 'contour') {
+            const intensity = getEdgeIntensity(px, srcW, srcH, x, y);
+            if (mode === 'edge') ch = intensity > 50 ? (intensity > 150 ? '#' : ':') : ' ';
+            else ch = intensity > 40 ? '·' : ' ';
+          } else if (mode === 'crosshatch') {
+            if (lum < 50) ch = 'X';
+            else if (lum < 100) ch = '#';
+            else if (lum < 150) ch = '/';
+            else if (lum < 200) ch = '-';
+            else ch = ' ';
+          } else {
+            switch (mode) {
+              case 'ascii': ch = chars[Math.floor((lum / 255) * (chars.length - 1))]; break;
+              case 'halftone': ch = ' .oO0'[Math.floor((lum / 255) * 4)]; break;
+              case 'dots': ch = lum > 127 ? '●' : '·'; break;
+              case 'threshold': ch = lum > 127 ? '█' : ' '; break;
+              case 'blockify': ch = '█'; break;
+              default: ch = chars[Math.floor((lum / 255) * (chars.length - 1))];
+            }
+          }
+          if (!ch || ch === ' ') continue;
+          ctx.fillStyle = state.color ? 'rgb(' + r + ',' + g + ',' + b + ')' : (state.isDark ? 'white' : 'black');
+          ctx.fillText(ch, x * charW, y * charH);
+        }
+      }
+    }
+
+    function processFrame(now) {
+      if (state.sourceType === 'none') return;
+      const isStatic = state.sourceType === 'image';
+      if (!isStatic && (video.paused || video.ended)) {
+        animationId = requestAnimationFrame(processFrame);
+        return;
+      }
+
+      const fps = Math.round(1000 / (now - state.lastFrameTime));
+      document.getElementById('overlay-fps').textContent = isNaN(fps) ? '--' : fps;
+      state.lastFrameTime = now;
+
+      const src = isStatic ? image : video;
+      const srcWidth = isStatic ? image.naturalWidth : video.videoWidth;
+      const srcHeight = isStatic ? image.naturalHeight : video.videoHeight;
+      if (!srcWidth || !srcHeight) return;
+
+      const targetWidth = parseInt(controls.res.value, 10);
+      const targetHeight = Math.floor(targetWidth / (srcWidth / srcHeight) / 1.8);
+
+      procCanvas.width = targetWidth;
+      procCanvas.height = targetHeight;
+      procCtx.filter = 'brightness(' + controls.bright.value + '%) contrast(' + controls.contrast.value + '%) saturate(' + controls.saturate.value + '%) hue-rotate(' + controls.hue.value + 'deg)' + (state.invert ? ' invert(1)' : '');
+      procCtx.drawImage(src, 0, 0, targetWidth, targetHeight);
+
+      const imgData = procCtx.getImageData(0, 0, targetWidth, targetHeight);
+      const basePx = new Uint8ClampedArray(imgData.data);
+
+      const invGamma = 1 / parseFloat(controls.gamma.value);
+      const mr = parseInt(controls.mixR.value, 10) / 100;
+      const mg = parseInt(controls.mixG.value, 10) / 100;
+      const mb = parseInt(controls.mixB.value, 10) / 100;
+      const pKey = controls.retro.value;
+      const palette = palettes[pKey];
+
+      for (let i = 0; i < basePx.length; i += 4) {
+        let r = Math.min(255, 255 * Math.pow((basePx[i] * mr) / 255, invGamma));
+        let g = Math.min(255, 255 * Math.pow((basePx[i+1] * mg) / 255, invGamma));
+        let b = Math.min(255, 255 * Math.pow((basePx[i+2] * mb) / 255, invGamma));
+        if (palette) {
+          const nearest = findNearest(r, g, b, palette);
+          basePx[i] = nearest[0]; basePx[i+1] = nearest[1]; basePx[i+2] = nearest[2];
+        } else {
+          basePx[i] = r; basePx[i+1] = g; basePx[i+2] = b;
+        }
+        basePx[i+3] = 255;
+      }
+
+      if (state.sharpen) applySharpen(basePx, targetWidth, targetHeight);
+      if (controls.dither.value !== 'none') applyDithering(basePx, targetWidth, targetHeight, controls.dither.value);
+
+      const fontSize = Math.max(8, Math.min(24, 1200 / targetWidth));
+      const charW = fontSize * 0.6, charH = fontSize;
+      const outW = Math.floor(targetWidth * charW);
+      const outH = Math.floor(targetHeight * charH);
+
+      outputCanvas.width = outW;
+      outputCanvas.height = outH;
+      outCtx.fillStyle = state.isDark ? '#000000' : '#ffffff';
+      outCtx.fillRect(0, 0, outW, outH);
+
+      const mode = controls.processingMode.value;
+      const renderPx = new Uint8ClampedArray(basePx);
+      if (mode === 'pixelsort') applyPixelSort(renderPx, targetWidth, targetHeight);
+      renderChars(outCtx, outW, outH, renderPx, targetWidth, targetHeight, mode);
+
+      if (!isStatic) animationId = requestAnimationFrame(processFrame);
+    }
+
+    updateUIValues();
+  </script>
+</body>
+</html>
