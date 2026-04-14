@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <title>ASCII Workstation Pro v5.0.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -17,16 +17,16 @@
       --canvas-bg:#fff;
     }
     body{background-color:var(--bg-deep);color:var(--text-main);font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;transition:background-color .3s ease,color .3s ease;}
-    .control-panel{background:var(--panel-bg);border-right:1px solid var(--border-muted);transition:background-color .3s ease,border-color .3s ease;}
+    .control-panel{background:var(--panel-bg);transition:background-color .3s ease,border-color .3s ease;}
     header{background-color:var(--header-bg);border-bottom:1px solid var(--border-muted);}
     ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#666;border-radius:10px}
-    input[type="range"]{-webkit-appearance:none;background:#333;height:2px;border-radius:2px}
+    input[type="range"]{-webkit-appearance:none;background:#333;height:4px;border-radius:4px;width:100%;}
     .light-theme input[type="range"]{background:#cbd5e1}
-    input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;background:var(--accent);border-radius:50%;cursor:pointer}
+    input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;background:var(--accent);border-radius:50%;cursor:pointer}
     .toggle-active{color:#fff!important;background-color:var(--accent)!important;border-color:var(--accent)!important}
     #output-canvas{image-rendering:pixelated;max-width:100%;max-height:100%;box-shadow:0 20px 50px rgba(0,0,0,.5)}
     select{background-color:var(--input-bg)!important;color:var(--text-main)!important;border-color:var(--border-muted)!important}
-    .label-style{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;opacity:.5}
+    .label-style{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;opacity:.5}
     .crt-overlay::after{
       content:" ";display:block;position:absolute;top:0;left:0;bottom:0;right:0;
       background:linear-gradient(rgba(18,16,16,0) 50%,rgba(0,0,0,.15) 50%),
@@ -34,18 +34,53 @@
       z-index:2;background-size:100% 3px,3px 100%;pointer-events:none;opacity:0;transition:opacity .3s
     }
     .crt-active.crt-overlay::after{opacity:1}
+
+    /* ── Mobile tab bar ── */
+    #tab-bar{display:none;}
+    .tab-btn{flex:1;padding:10px 4px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-top:2px solid transparent;transition:all .2s;opacity:.45;}
+    .tab-btn.active{border-top-color:var(--accent);opacity:1;color:var(--accent);}
+
+    /* ── Panel sections collapsible on mobile ── */
+    .panel-section{}
+
+    /* ── Desktop: side-by-side ── */
+    @media (min-width: 768px){
+      #main-layout{flex-direction:row!important;}
+      #sidebar{width:288px;min-width:288px;border-right:1px solid var(--border-muted);border-bottom:none!important;height:100%;overflow-y:auto;display:flex!important;}
+      #display-area{flex:1;min-height:0;}
+      #tab-bar{display:none!important;}
+      .panel-page{display:block!important;}
+    }
+
+    /* ── Mobile: stacked ── */
+    @media (max-width: 767px){
+      body{height:100dvh;overflow:hidden;}
+      #tab-bar{display:flex;background:var(--header-bg);border-top:1px solid var(--border-muted);}
+      #main-layout{flex-direction:column!important;height:calc(100dvh - 52px - 44px);}
+      #sidebar{width:100%!important;min-width:unset!important;border-right:none!important;border-bottom:1px solid var(--border-muted);overflow-y:auto;flex-shrink:0;max-height:52vh;}
+      #display-area{flex:1;min-height:120px;}
+      .panel-page{display:none;}
+      .panel-page.active{display:block;}
+      /* canvas panel = just the canvas area, no sidebar */
+      #canvas-tab-content{display:none;flex:1;}
+      #canvas-tab-content.active{display:flex;}
+    }
+
+    /* Bigger touch targets */
+    button, label.upload-label{min-height:42px;display:flex;align-items:center;justify-content:center;}
+    select{min-height:40px;}
   </style>
 </head>
 
-<body class="h-screen flex flex-col overflow-hidden">
-  <header class="h-14 flex items-center justify-between px-6 shrink-0 z-10">
-    <div class="flex items-center gap-4">
-      <h1 class="text-xs font-bold tracking-widest uppercase opacity-80">
-        ASCII Engine <span class="text-emerald-500">v5.0.0 PRO+</span>
-      </h1>
-    </div>
-    <div class="flex gap-4 items-center">
-      <button id="theme-toggle" class="p-2 rounded-lg border border-slate-700/30 hover:bg-slate-500/10 transition-colors flex items-center gap-2">
+<body class="flex flex-col overflow-hidden" style="height:100dvh;">
+
+  <!-- ── Header ── -->
+  <header class="shrink-0 flex items-center justify-between px-4 py-3 z-10" style="min-height:52px;">
+    <h1 class="text-xs font-bold tracking-widest uppercase opacity-80">
+      ASCII Engine <span class="text-emerald-500">v5.0.0 PRO+</span>
+    </h1>
+    <div class="flex items-center gap-3">
+      <button id="theme-toggle" class="px-3 py-2 rounded-lg border border-slate-700/30 hover:bg-slate-500/10 transition-colors flex items-center gap-2">
         <div id="theme-icons" class="relative w-4 h-4">
           <svg id="sun-icon" class="absolute inset-0 hidden w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
             <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path>
@@ -56,39 +91,46 @@
         </div>
         <span id="theme-text" class="text-[9px] uppercase font-bold tracking-wider">Dark</span>
       </button>
-      <div class="flex items-center gap-2 pl-4 border-l border-slate-700/30">
+      <div class="flex items-center gap-2 pl-3 border-l border-slate-700/30">
         <div id="status-dot" class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></div>
-        <span id="status-msg" class="text-[9px] uppercase tracking-widest opacity-50">System Live</span>
+        <span id="status-msg" class="text-[9px] uppercase tracking-widest opacity-50 hidden sm:inline">System Live</span>
       </div>
     </div>
   </header>
 
-  <div class="flex flex-1 overflow-hidden">
-    <aside class="w-72 control-panel flex flex-col shrink-0 overflow-y-auto border-r">
-      <div class="p-6 space-y-4 border-b border-slate-700/10">
+  <!-- ── Main layout ── -->
+  <div id="main-layout" class="flex flex-1 overflow-hidden">
+
+    <!-- ── Sidebar / Controls ── -->
+    <aside id="sidebar" class="control-panel flex flex-col shrink-0">
+
+      <!-- Source buttons — always visible -->
+      <div class="p-4 border-b border-slate-700/10 shrink-0">
         <div class="flex gap-2">
-          <button id="webcam-btn" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border border-slate-700/50 hover:border-emerald-500 transition-all rounded">Camera</button>
-          <label class="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border border-slate-700/50 hover:border-emerald-500 transition-all rounded cursor-pointer text-center">
-            Upload
+          <button id="webcam-btn" class="flex-1 text-[11px] font-bold uppercase tracking-widest border border-slate-700/50 hover:border-emerald-500 transition-all rounded">📷 Camera</button>
+          <label class="flex-1 text-[11px] font-bold uppercase tracking-widest border border-slate-700/50 hover:border-emerald-500 transition-all rounded cursor-pointer upload-label">
+            ⬆ Upload
             <input type="file" id="file-input" accept="video/*,image/*" class="hidden" />
           </label>
         </div>
       </div>
 
-      <div class="p-6 space-y-6">
+      <!-- Controls body (scrollable) -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-5">
+
         <!-- Resolution -->
-        <div class="space-y-3">
+        <div class="space-y-2">
           <div class="flex justify-between items-baseline">
             <label class="label-style">Resolution</label>
             <span id="val-width" class="text-xs font-mono text-emerald-500">120</span>
           </div>
-          <input type="range" id="res-range" min="40" max="400" value="120" class="w-full" />
+          <input type="range" id="res-range" min="40" max="400" value="120" />
         </div>
 
         <!-- Processing Mode -->
-        <div class="space-y-3">
+        <div class="space-y-2">
           <label class="label-style">Processing Mode</label>
-          <select id="processing-mode" class="w-full border border-slate-700/50 rounded p-2 text-[10px] uppercase font-bold outline-none focus:border-emerald-500 transition-all">
+          <select id="processing-mode" class="w-full border border-slate-700/50 rounded p-2 text-[11px] uppercase font-bold outline-none focus:border-emerald-500 transition-all">
             <option value="ascii">ASCII Rendering</option>
             <option value="halftone">Halftone</option>
             <option value="dots">Dots Mode</option>
@@ -101,10 +143,10 @@
           </select>
         </div>
 
-        <!-- Retro Palettes -->
-        <div class="space-y-3">
+        <!-- Retro Palette -->
+        <div class="space-y-2">
           <label class="label-style">Retro Palette Filter</label>
-          <select id="retro-palette" class="w-full border border-slate-700/50 rounded p-2 text-[10px] uppercase font-bold outline-none focus:border-emerald-500 transition-all">
+          <select id="retro-palette" class="w-full border border-slate-700/50 rounded p-2 text-[11px] uppercase font-bold outline-none focus:border-emerald-500 transition-all">
             <option value="none">True Color</option>
             <option value="gameboy">GameBoy Classic</option>
             <option value="nes">NES (8-Bit)</option>
@@ -114,24 +156,24 @@
           </select>
         </div>
 
-        <!-- Color Matrix Mixer -->
-        <div class="space-y-4 bg-black/20 p-4 rounded border border-slate-700/10">
+        <!-- RGB Mixer -->
+        <div class="space-y-3 bg-black/20 p-4 rounded border border-slate-700/10">
           <div class="flex items-center justify-between">
             <label class="label-style text-emerald-500">RGB Mixer</label>
-            <button id="btn-reset-rgb" class="text-[8px] font-bold uppercase tracking-wider px-2 py-1 rounded border border-slate-700/50 hover:border-emerald-500 hover:text-emerald-500 transition-all">Reset</button>
+            <button id="btn-reset-rgb" class="text-[9px] font-bold uppercase tracking-wider px-3 py-1 rounded border border-slate-700/50 hover:border-emerald-500 hover:text-emerald-500 transition-all" style="min-height:32px;">Reset</button>
           </div>
-          <div class="grid grid-cols-3 gap-2">
-            <div class="space-y-1">
-              <label class="text-[8px] opacity-50 font-bold block">RED</label>
-              <input type="range" id="mix-r" min="0" max="200" value="100" class="w-full accent-red-500" />
+          <div class="grid grid-cols-3 gap-3">
+            <div class="space-y-2">
+              <label class="text-[9px] opacity-50 font-bold block">RED</label>
+              <input type="range" id="mix-r" min="0" max="200" value="100" class="accent-red-500" />
             </div>
-            <div class="space-y-1">
-              <label class="text-[8px] opacity-50 font-bold block">GREEN</label>
-              <input type="range" id="mix-g" min="0" max="200" value="100" class="w-full accent-green-500" />
+            <div class="space-y-2">
+              <label class="text-[9px] opacity-50 font-bold block">GREEN</label>
+              <input type="range" id="mix-g" min="0" max="200" value="100" class="accent-green-500" />
             </div>
-            <div class="space-y-1">
-              <label class="text-[8px] opacity-50 font-bold block">BLUE</label>
-              <input type="range" id="mix-b" min="0" max="200" value="100" class="w-full accent-blue-500" />
+            <div class="space-y-2">
+              <label class="text-[9px] opacity-50 font-bold block">BLUE</label>
+              <input type="range" id="mix-b" min="0" max="200" value="100" class="accent-blue-500" />
             </div>
           </div>
         </div>
@@ -141,35 +183,31 @@
           <label class="label-style text-emerald-500">Image Tweaks</label>
 
           <div class="space-y-2">
-            <div class="flex justify-between text-[9px] uppercase font-bold"><label>Brightness</label><span id="v-bright">100%</span></div>
-            <input type="range" id="brightness" min="0" max="200" value="100" class="w-full" />
+            <div class="flex justify-between text-[10px] uppercase font-bold"><label>Brightness</label><span id="v-bright">100%</span></div>
+            <input type="range" id="brightness" min="0" max="200" value="100" />
           </div>
-
           <div class="space-y-2">
-            <div class="flex justify-between text-[9px] uppercase font-bold"><label>Contrast</label><span id="v-contrast">100%</span></div>
-            <input type="range" id="contrast" min="0" max="200" value="100" class="w-full" />
+            <div class="flex justify-between text-[10px] uppercase font-bold"><label>Contrast</label><span id="v-contrast">100%</span></div>
+            <input type="range" id="contrast" min="0" max="200" value="100" />
           </div>
-
           <div class="space-y-2">
-            <div class="flex justify-between text-[9px] uppercase font-bold"><label>Saturation</label><span id="v-saturate">100%</span></div>
-            <input type="range" id="saturate" min="0" max="200" value="100" class="w-full" />
+            <div class="flex justify-between text-[10px] uppercase font-bold"><label>Saturation</label><span id="v-saturate">100%</span></div>
+            <input type="range" id="saturate" min="0" max="200" value="100" />
           </div>
-
           <div class="space-y-2">
-            <div class="flex justify-between text-[9px] uppercase font-bold"><label>Hue Rotate</label><span id="v-hue">0deg</span></div>
-            <input type="range" id="hue" min="0" max="360" value="0" class="w-full" />
+            <div class="flex justify-between text-[10px] uppercase font-bold"><label>Hue Rotate</label><span id="v-hue">0deg</span></div>
+            <input type="range" id="hue" min="0" max="360" value="0" />
           </div>
-
           <div class="space-y-2">
-            <div class="flex justify-between text-[9px] uppercase font-bold"><label>Gamma</label><span id="v-gamma">1.0</span></div>
-            <input type="range" id="gamma" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full" />
+            <div class="flex justify-between text-[10px] uppercase font-bold"><label>Gamma</label><span id="v-gamma">1.0</span></div>
+            <input type="range" id="gamma" min="0.5" max="2.0" step="0.1" value="1.0" />
           </div>
         </div>
 
         <!-- Dither -->
-        <div class="space-y-3">
-          <label class="label-style">Dither Engine (Global)</label>
-          <select id="dither-mode" class="w-full border border-slate-700/50 rounded p-2 text-[10px] uppercase font-bold outline-none focus:border-emerald-500 transition-all">
+        <div class="space-y-2">
+          <label class="label-style">Dither Engine</label>
+          <select id="dither-mode" class="w-full border border-slate-700/50 rounded p-2 text-[11px] uppercase font-bold outline-none focus:border-emerald-500 transition-all">
             <option value="none">Disabled</option>
             <option value="floyd">Floyd-Steinberg</option>
             <option value="atkinson">Atkinson</option>
@@ -178,53 +216,97 @@
           </select>
         </div>
 
-        <!-- Switches -->
-        <div class="space-y-2">
+        <!-- Toggle Switches -->
+        <div class="space-y-3">
           <div class="grid grid-cols-2 gap-2">
-            <button id="btn-invert" class="py-2 border border-slate-700/50 rounded text-[9px] uppercase font-bold hover:bg-slate-500/10 transition-colors">Invert</button>
-            <button id="btn-color" class="py-2 border border-slate-700/50 rounded text-[9px] uppercase font-bold hover:bg-slate-500/10 transition-colors toggle-active">Color</button>
-            <button id="btn-mute" class="py-2 border border-slate-700/50 rounded text-[9px] uppercase font-bold hover:bg-slate-500/10 transition-colors">Muted</button>
-            <button id="btn-skip-white" class="py-2 border border-slate-700/50 rounded text-[9px] uppercase font-bold hover:bg-slate-500/10 transition-colors">Skip White</button>
-            <button id="btn-sharpen" class="py-2 border border-slate-700/50 rounded text-[9px] uppercase font-bold hover:bg-slate-500/10 transition-colors">Sharpen</button>
-            <button id="btn-crt" class="py-2 border border-slate-700/50 rounded text-[9px] uppercase font-bold hover:bg-slate-500/10 transition-colors">CRT Mode</button>
+            <button id="btn-invert"     class="rounded text-[10px] uppercase font-bold border border-slate-700/50 hover:bg-slate-500/10 transition-colors">Invert</button>
+            <button id="btn-color"      class="rounded text-[10px] uppercase font-bold border border-slate-700/50 hover:bg-slate-500/10 transition-colors toggle-active">Color</button>
+            <button id="btn-mute"       class="rounded text-[10px] uppercase font-bold border border-slate-700/50 hover:bg-slate-500/10 transition-colors">Muted</button>
+            <button id="btn-skip-white" class="rounded text-[10px] uppercase font-bold border border-slate-700/50 hover:bg-slate-500/10 transition-colors">Skip White</button>
+            <button id="btn-sharpen"    class="rounded text-[10px] uppercase font-bold border border-slate-700/50 hover:bg-slate-500/10 transition-colors">Sharpen</button>
+            <button id="btn-crt"        class="rounded text-[10px] uppercase font-bold border border-slate-700/50 hover:bg-slate-500/10 transition-colors">CRT Mode</button>
           </div>
 
-          <button id="btn-download" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] uppercase font-bold tracking-widest transition-all shadow-lg shadow-emerald-900/20">
+          <button id="btn-download" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] uppercase font-bold tracking-widest transition-all shadow-lg shadow-emerald-900/20">
             Capture Frame (PNG)
           </button>
 
-          <div id="char-set-container" class="mt-2">
-            <select id="char-set" class="w-full h-10 border border-slate-700/50 rounded text-[10px] uppercase font-bold text-center outline-none cursor-pointer hover:border-emerald-500 transition-all">
-              <option value="standard">Standard Symbols</option>
-              <option value="dense">High Density</option>
-              <option value="minimal">Minimalist</option>
-              <option value="blocks">Block Matrix</option>
-            </select>
-          </div>
+          <select id="char-set" class="w-full border border-slate-700/50 rounded text-[11px] uppercase font-bold text-center outline-none cursor-pointer hover:border-emerald-500 transition-all p-2">
+            <option value="standard">Standard Symbols</option>
+            <option value="dense">High Density</option>
+            <option value="minimal">Minimalist</option>
+            <option value="blocks">Block Matrix</option>
+          </select>
         </div>
-      </div>
+
+      </div><!-- /controls body -->
     </aside>
 
-    <section id="display-area" class="flex-1 relative overflow-hidden flex items-center justify-center p-4 crt-overlay">
+    <!-- ── Canvas area ── -->
+    <section id="display-area" class="flex-1 relative overflow-hidden flex items-center justify-center p-3 crt-overlay" style="min-height:0;">
       <canvas id="output-canvas"></canvas>
-
-      <div class="absolute bottom-4 left-4 flex gap-4 pointer-events-none">
+      <div class="absolute bottom-3 left-3 flex gap-4 pointer-events-none">
         <div class="text-[9px] font-mono opacity-30 uppercase">Src: <span id="overlay-src">None</span></div>
         <div class="text-[9px] font-mono opacity-30 uppercase">Rate: <span id="overlay-fps">--</span> FPS</div>
       </div>
     </section>
-  </div>
 
+  </div><!-- /main-layout -->
+
+  <!-- ── Mobile bottom tab bar ── -->
+  <nav id="tab-bar" class="shrink-0">
+    <button class="tab-btn active" data-tab="controls" id="tab-controls">
+      <span>⚙ Controls</span>
+    </button>
+    <button class="tab-btn" data-tab="canvas" id="tab-canvas">
+      <span>🖼 Preview</span>
+    </button>
+  </nav>
+
+  <!-- Hidden elements -->
   <video id="video-source" playsinline class="hidden"></video>
   <img id="image-source" class="hidden" />
   <canvas id="proc-canvas" class="hidden"></canvas>
 
   <script>
+    /* ── Mobile tab switching ── */
+    const sidebar = document.getElementById('sidebar');
+    const displayArea = document.getElementById('display-area');
+    const tabBtns = document.querySelectorAll('.tab-btn');
+
+    function switchTab(tab) {
+      tabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+      if (window.innerWidth < 768) {
+        if (tab === 'controls') {
+          sidebar.style.display = 'flex';
+          displayArea.style.display = 'none';
+        } else {
+          sidebar.style.display = 'none';
+          displayArea.style.display = 'flex';
+        }
+      }
+    }
+
+    tabBtns.forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+
+    // Initial state on mobile: show controls
+    function applyMobileLayout() {
+      if (window.innerWidth < 768) {
+        sidebar.style.display = 'flex';
+        displayArea.style.display = 'none';
+      } else {
+        sidebar.style.display = 'flex';
+        displayArea.style.display = 'flex';
+      }
+    }
+    applyMobileLayout();
+    window.addEventListener('resize', applyMobileLayout);
+
+    /* ── App logic (unchanged) ── */
     const video = document.getElementById('video-source');
     const image = document.getElementById('image-source');
     const procCanvas = document.getElementById('proc-canvas');
     const procCtx = procCanvas.getContext('2d', { willReadFrequently: true });
-
     const outputCanvas = document.getElementById('output-canvas');
     const outCtx = outputCanvas.getContext('2d');
 
@@ -332,8 +414,12 @@
       if (state.sourceType === 'image') processFrame(performance.now());
     };
 
-    // ---------------- Image Processing ----------------
     let animationId = null;
+
+    // Auto-switch to preview tab when source is loaded on mobile
+    function autoSwitchToPreview() {
+      if (window.innerWidth < 768) switchTab('canvas');
+    }
 
     document.getElementById('file-input').onchange = (e) => {
       const file = e.target.files && e.target.files[0];
@@ -346,6 +432,7 @@
         image.onload = () => {
           document.getElementById('overlay-src').textContent = 'Image';
           processFrame(performance.now());
+          autoSwitchToPreview();
         };
         return;
       }
@@ -361,6 +448,7 @@
           state.lastFrameTime = performance.now();
           if (animationId) cancelAnimationFrame(animationId);
           animationId = requestAnimationFrame(processFrame);
+          autoSwitchToPreview();
         };
         return;
       }
@@ -382,6 +470,7 @@
           state.lastFrameTime = performance.now();
           if (animationId) cancelAnimationFrame(animationId);
           animationId = requestAnimationFrame(processFrame);
+          autoSwitchToPreview();
         };
       } catch (err) {
         state.sourceType = 'none';
