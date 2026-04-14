@@ -1,5 +1,5 @@
 # AsciiArt-Third Revamping 
-Revamped Ver of the Image to ASCII Converter 
+Third Revamped Ver of the Image to ASCII Converter 
 
 A web-based tool to convert images into ASCII art with customizable options like brightness, contrast, and colorization. 
 
